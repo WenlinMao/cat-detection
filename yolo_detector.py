@@ -1,8 +1,10 @@
+import argparse
+import logging
+from picamera2 import Picamera2
+import time
 import cv2
 import numpy as np
 import onnxruntime as ort
-import argparse
-import logging
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Cat Detection Script")
@@ -20,68 +22,65 @@ def setup_logging(debug):
         format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-def main():
-    args = parse_args()
-    setup_logging(args.debug)
+def load_model(onnx_model_path):
+    return ort.InferenceSession(onnx_model_path, providers=['CPUExecutionProvider'])
 
-    logging.info("Starting the cat detection process.")
+def preprocess_frame(frame, input_size=(640, 640)):
+    img = cv2.resize(frame, input_size)
+    img = img.astype(np.float32) / 255.0  # Normalize
+    img = np.transpose(img, (2, 0, 1))  # Change channel order
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img
 
-    # Load the YOLOv5 model
-    model_path = "yolov5n.onnx"
-    session = ort.InferenceSession(model_path)
+def postprocess_detections(detections, frame_shape, conf_threshold=0.5):
+    boxes, scores, class_ids = [], [], []
+    h, w = frame_shape[:2]
+    
+    for det in detections[0]:
+        confidence = det[4]
+        if confidence >= conf_threshold and int(det[5]) == 15:  # Class 15 corresponds to 'cat' in COCO dataset
+            x, y, bw, bh = det[:4]
+            x1 = int((x - bw / 2) * w)
+            y1 = int((y - bh / 2) * h)
+            x2 = int((x + bw / 2) * w)
+            y2 = int((y + bh / 2) * h)
+            boxes.append((x1, y1, x2, y2))
+            scores.append(float(confidence))
+    
+    return boxes, scores
 
-    # Define class names (COCO dataset, class 15 is 'cat')
-    CLASSES = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
-            "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat"]
+def draw_detections(frame, boxes, scores):
+    for (x1, y1, x2, y2), score in zip(boxes, scores):
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(frame, f"Cat: {score:.2f}", (x1, y1 - 10), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-    # Set up camera
-    cap = cv2.VideoCapture(0)
-    if args.debug:
-        # Check if the capture device was successfully opened
-        if not cap.isOpened():
-            logging.debug("Error: Could not open video capture device.")
-        else:
-            logging.debug("Video capture device opened successfully.")
-
-    while True:
-        if args.debug:
-            logging.debug("keep capturing...")
-        ret, frame = cap.read()
-        if not ret:
-            if args.debug:
-                logging.debug("cap.read unsuccess")
-            break
-
-        # Preprocess the image
-        img = cv2.resize(frame, (640, 640))
-        img = img.transpose(2, 0, 1)  # Convert HWC to CHW
-        img = np.expand_dims(img, axis=0).astype(np.float32) / 255.0  # Normalize
-
-        if args.debug:
-            logging.debug(f"First pixel value (BGR): {img[0, 0]}")
-
-        # Run inference
-        inputs = {session.get_inputs()[0].name: img}
-        outputs = session.run(None, inputs)
-
-        # Process detections
-        detections = outputs[0][0]  # YOLO outputs bounding boxes, class IDs, confidence
-
-        for detection in detections:
-            x, y, w, h, conf, class_id = detection[:6]
-            if conf > 0.5 and int(class_id) == 15:  # Class 15 = cat
-                x1, y1, x2, y2 = int(x - w / 2), int(y - h / 2), int(x + w / 2), int(y + h / 2)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, "Cat Detected!", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-        # Show video feed
-        cv2.imshow("Cat Detector", frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-    logging.info("Cat detection process completed.")
+def capture_and_detect():
+    picam2 = Picamera2()
+    config = picam2.create_preview_configuration()
+    picam2.configure(config)
+    picam2.start()
+    time.sleep(2)  # Allow camera to adjust
+    
+    model_path = "yolov5n.onnx"  # Ensure the correct model path
+    model = load_model(model_path)
+    
+    try:
+        while True:
+            frame = picam2.capture_array()
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            input_tensor = preprocess_frame(rgb_frame)
+            
+            detections = model.run(None, {model.get_inputs()[0].name: input_tensor})
+            boxes, scores = postprocess_detections(detections, frame.shape)
+            draw_detections(frame, boxes, scores)
+            
+            cv2.imshow('Cat Detector', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        picam2.stop()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    main()
+    capture_and_detect()
