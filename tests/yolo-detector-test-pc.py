@@ -1,6 +1,6 @@
 import argparse
 import logging
-from picamera2 import Picamera2
+# from picamera2 import Picamera2
 import time
 import cv2
 import numpy as np
@@ -61,33 +61,50 @@ def draw_detections(frame, boxes, scores):
 def capture_and_detect():
     args = parse_args()
     setup_logging(args.debug)
-    picam2 = Picamera2()
-    config = picam2.create_preview_configuration()
-    picam2.configure(config)
-    picam2.start()
-    time.sleep(2)  # Allow camera to adjust
+
+    # picam2 = Picamera2()
+    # config = picam2.create_preview_configuration()
+    # picam2.configure(config)
+    # picam2.start()
+    # time.sleep(2)  # Allow camera to adjust
+
+    # Open the webcam (0 is the default camera)
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Could not open webcam")
+        exit()
     
     model_path = "yolov5n.onnx"  # Ensure the correct model path
     model = load_model(model_path)
     
     try:
         while True:
-            frame = picam2.capture_array()
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # frame = picam2.capture_array()
+            # rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Capture frame-by-frame
+            ret, rgb_frame = cap.read()
+
+            if not ret:
+                print("Error: Could not read frame")
+                break
+            
             input_tensor = preprocess_frame(rgb_frame)
             
             detections = model.run(None, {model.get_inputs()[0].name: input_tensor})
-            # if args.debug:
-            #     logging.debug(f"Detections shape: {np.array(detections).shape}")  # Show dimensions
-            #     logging.debug(f"Detections content: {detections}")
-            boxes, scores = postprocess_detections(detections, frame.shape)
-            draw_detections(frame, boxes, scores)
+            if args.debug:
+                logging.debug(f"Detections shape: {np.array(detections).shape}")  # Show dimensions
+                logging.debug(f"Detections content: {detections}")
+            boxes, scores = postprocess_detections(detections, rgb_frame.shape)
+            draw_detections(rgb_frame, boxes, scores)
             
-            cv2.imshow('Cat Detector', frame)
+            cv2.imshow('Cat Detector', rgb_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
     finally:
-        picam2.stop()
+        # picam2.stop()
+        cap.release()
+
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":
