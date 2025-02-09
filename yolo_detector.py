@@ -33,21 +33,24 @@ def preprocess_frame(frame, input_size=(640, 640)):
     return img
 
 def postprocess_detections(detections, frame_shape, conf_threshold=0.5):
-    boxes, scores, class_ids = [], [], []
+    boxes, scores = [], []
     h, w = frame_shape[:2]
-    
+
     for det in detections[0]:
-        confidence = det[4]
-        if confidence >= conf_threshold and int(det[5]) == 15:  # Class 15 corresponds to 'cat' in COCO dataset
+        confidence = det[4].item()  # Ensure it's a scalar
+        class_id = int(det[5].item())  # Ensure it's an integer
+        
+        if confidence >= conf_threshold and class_id == 15:  # 15 = 'cat' in COCO
             x, y, bw, bh = det[:4]
             x1 = int((x - bw / 2) * w)
             y1 = int((y - bh / 2) * h)
             x2 = int((x + bw / 2) * w)
             y2 = int((y + bh / 2) * h)
             boxes.append((x1, y1, x2, y2))
-            scores.append(float(confidence))
-    
+            scores.append(confidence)
+
     return boxes, scores
+
 
 def draw_detections(frame, boxes, scores):
     for (x1, y1, x2, y2), score in zip(boxes, scores):
