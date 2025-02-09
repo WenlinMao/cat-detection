@@ -1,20 +1,38 @@
-from picamera2 import Picamera2
-from picamera2 import Preview
+from picamera2 import Picamera2, Preview
 import time
+import cv2
+import numpy as np
 
-# Initialize the camera
-picam2 = Picamera2()
+def capture_and_stream():
+    # Initialize the camera
+    picam2 = Picamera2()
+    config = picam2.create_preview_configuration()
+    picam2.configure(config)
+    
+    # Start the camera
+    picam2.start()
+    time.sleep(2)  # Allow camera to adjust
+    
+    frame_count = 0
+    
+    try:
+        while True:
+            frame = picam2.capture_array()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Save each frame
+            filename = f"frame_{frame_count:04d}.jpg"
+            cv2.imwrite(filename, frame)
+            frame_count += 1
+            
+            # Display the live stream
+            cv2.imshow('Camera Feed', frame)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        picam2.stop()
+        cv2.destroyAllWindows()
 
-# Configure the camera (you can adjust these settings based on your needs)
-picam2.start_preview(Preview.NULL)
-
-# Allow the camera to adjust to the lighting for a short period
-time.sleep(2)
-
-# Capture the image and save it as 'image.jpg'
-picam2.capture_file("image.jpg")
-
-# Optionally, stop the preview
-picam2.stop_preview()
-
-print("Image captured and saved as 'image.jpg'.")
+if __name__ == "__main__":
+    capture_and_stream()
