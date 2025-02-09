@@ -37,9 +37,9 @@ def postprocess_detections(detections, frame_shape, conf_threshold=0.5):
     h, w = frame_shape[:2]
 
     for det in detections[0]:
-        confidence = det[4].item()  # Ensure it's a scalar
-        class_id = int(det[5].item())  # Ensure it's an integer
-        
+        confidence = float(det[4])  # Convert confidence score to scalar
+        class_id = int(det[5])  # Convert class ID to integer
+
         if confidence >= conf_threshold and class_id == 15:  # 15 = 'cat' in COCO
             x, y, bw, bh = det[:4]
             x1 = int((x - bw / 2) * w)
@@ -59,6 +59,8 @@ def draw_detections(frame, boxes, scores):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
 def capture_and_detect():
+    args = parse_args()
+    setup_logging(args.debug)
     picam2 = Picamera2()
     config = picam2.create_preview_configuration()
     picam2.configure(config)
@@ -75,6 +77,9 @@ def capture_and_detect():
             input_tensor = preprocess_frame(rgb_frame)
             
             detections = model.run(None, {model.get_inputs()[0].name: input_tensor})
+            if args.debug:
+                logging.debug(f"Detections shape: {np.array(detections).shape}")  # Show dimensions
+                logging.debug(f"Detections content: {detections}")
             boxes, scores = postprocess_detections(detections, frame.shape)
             draw_detections(frame, boxes, scores)
             
