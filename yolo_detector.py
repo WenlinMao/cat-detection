@@ -136,7 +136,7 @@ def capture_and_detect():
     picam2.start()
     time.sleep(2)  # Allow camera to adjust
     
-    model_path = "yolov5m.onnx"  # Ensure the correct model path
+    model_path = "yolov5n.onnx"  # Ensure the correct model path
     model = load_model(model_path)
     
     try:
