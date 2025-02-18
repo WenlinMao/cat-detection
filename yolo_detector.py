@@ -117,7 +117,7 @@ def draw_detections(frame, labels, boxes, scores):
 def play_audio(sound):
     # Play the sound for 1000 milliseconds (1 second)
     sound.play(maxtime=1000)
-    
+
     # Keep the program running long enough to hear the sound
     pygame.time.delay(1000)
 
@@ -140,6 +140,7 @@ def capture_and_detect():
     model = load_model(model_path)
 
     frame_count = 0
+    image_count = 0
     frame_interval = 10
     
     try:
@@ -167,7 +168,7 @@ def capture_and_detect():
 
             # cv2.imshow('Cat Detector', rgb_frame)
             if frame_count % frame_interval == 0:
-                filename = f"frame_{image_count:04d}.jpg"
+                filename = f"test_img/frame_{image_count:04d}.jpg"
                 cv2.imwrite(filename, frame)
                 image_count += 1
             
