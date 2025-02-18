@@ -149,7 +149,6 @@ def capture_and_detect():
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             if args.local_model:
-                logging.info("Using Local Model")
                 input_tensor = preprocess_frame(rgb_frame)
                 
                 detections = model.run(None, {model.get_inputs()[0].name: input_tensor})
@@ -161,7 +160,6 @@ def capture_and_detect():
                 #     logging.debug(f"detections[3].shape: {detections[3].shape}")  # Show dimensions
                 labels, boxes, scores = postprocess_detections(detections[0][0], rgb_frame.shape, sound)
             else:
-                logging.info("Using AWS Model")
                 labels, boxes, scores = use_aws_rekognition(rgb_frame, sound)
             
             draw_detections(rgb_frame, labels, boxes, scores)
@@ -169,7 +167,8 @@ def capture_and_detect():
             # cv2.imshow('Cat Detector', rgb_frame)
             if frame_count % frame_interval == 0:
                 filename = f"test_img/frame_{image_count:04d}.jpg"
-                cv2.imwrite(filename, frame)
+                logging.info(f"Frame Captured: {filename}")
+                cv2.imwrite(filename, rgb_frame)
                 image_count += 1
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
