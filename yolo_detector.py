@@ -85,7 +85,7 @@ def use_aws_rekognition(frame, sound):
     
     # Extract bounding boxes if available
     for label in response['Labels']:
-        if label["Name"] != "Cat" and label['Confidence'] <= 75.0:
+        if label["Name"] != "Cat" or label['Confidence'] <= 75.0:
             continue
         
         play_audio(sound)
@@ -115,11 +115,11 @@ def draw_detections(frame, labels, boxes, scores):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
 def play_audio(sound):
-    # Play the sound
-    sound.play()
-
-    # Wait for the sound to finish playing
-    time.sleep(1)  # Sleep for 1 second
+    # Play the sound for 1000 milliseconds (1 second)
+    sound.play(maxtime=1000)
+    
+    # Keep the program running long enough to hear the sound
+    pygame.time.delay(1000)
 
 def capture_and_detect():
     args = parse_args()
@@ -148,6 +148,7 @@ def capture_and_detect():
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             if args.local_model:
+                logging.info("Using Local Model")
                 input_tensor = preprocess_frame(rgb_frame)
                 
                 detections = model.run(None, {model.get_inputs()[0].name: input_tensor})
@@ -159,6 +160,7 @@ def capture_and_detect():
                 #     logging.debug(f"detections[3].shape: {detections[3].shape}")  # Show dimensions
                 labels, boxes, scores = postprocess_detections(detections[0][0], rgb_frame.shape, sound)
             else:
+                logging.info("Using AWS Model")
                 labels, boxes, scores = use_aws_rekognition(rgb_frame, sound)
             
             draw_detections(rgb_frame, labels, boxes, scores)
