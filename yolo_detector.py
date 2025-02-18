@@ -85,7 +85,7 @@ def use_aws_rekognition(frame, sound):
     
     # Extract bounding boxes if available
     for label in response['Labels']:
-        if label["Name"] != "Cat" or label['Confidence'] <= 75.0:
+        if label["Name"] != "Person" or label['Confidence'] <= 75.0:
             continue
         
         play_audio(sound)
