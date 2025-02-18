@@ -138,6 +138,9 @@ def capture_and_detect():
     
     model_path = "yolov5n.onnx"  # Ensure the correct model path
     model = load_model(model_path)
+
+    frame_count = 0
+    frame_interval = 10
     
     try:
         while True:
@@ -159,9 +162,17 @@ def capture_and_detect():
                 labels, boxes, scores = use_aws_rekognition(rgb_frame, sound)
             
             draw_detections(rgb_frame, labels, boxes, scores)
-            cv2.imshow('Cat Detector', rgb_frame)
+
+            # cv2.imshow('Cat Detector', rgb_frame)
+            if frame_count % frame_interval == 0:
+                filename = f"frame_{image_count:04d}.jpg"
+                cv2.imwrite(filename, frame)
+                image_count += 1
+            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+            frame_count += 1
     finally:
         picam2.stop()
         cv2.destroyAllWindows()
